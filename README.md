@@ -1,0 +1,61 @@
+# opencode-gui
+
+GitHub Actions builds of upstream [OpenChamber](https://github.com/openchamber/openchamber) for macOS (Apple Silicon / arm64), rebranded as **opencode-gui**.
+
+OpenChamber is MIT-licensed; this repo only automates building it from source and renaming the resulting app. No functional patches are applied — it is a straight build of whatever upstream tag/ref is selected.
+
+## Overview
+
+`.github/workflows/build-release.yml` checks out upstream `openchamber/openchamber` at a tag (latest `v*` by default, or any ref you choose via manual dispatch), builds the Electron desktop app for macOS arm64 with Bun + electron-builder, renames the product to `opencode-gui`, and publishes a GitHub release with the `.dmg` and `.zip` artifacts.
+
+`scripts/build.sh` does the same build locally on an Apple Silicon Mac, for testing before (or instead of) running CI.
+
+## Install
+
+1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/opencode-gui/releases/latest) and drag `opencode-gui.app` to `/Applications`.
+2. The build is unsigned/ad-hoc signed (no Apple Developer certificate). Gatekeeper will block it on first launch:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/opencode-gui.app
+   ```
+   or right-click the app → **Open**.
+
+## Manual builds
+
+```bash
+gh workflow run build-release.yml -R Rahulsharma0810/opencode-gui \
+  -f ref=v2.6.0
+```
+
+Leave `ref` empty to build the latest upstream release tag. The workflow also runs on a schedule (every 12h) and skips automatically if a release for that upstream tag already exists in this repo.
+
+## Local build (Apple Silicon only)
+
+```bash
+./scripts/build.sh            # builds latest upstream tag
+./scripts/build.sh v2.6.0      # builds a specific tag/ref
+```
+
+Requires: macOS on Apple Silicon (arm64), Xcode command line tools, [Bun](https://bun.sh) >= 1.4, Node.js >= 24.
+
+Output lands in `work/openchamber/packages/electron/dist/`.
+
+## How the rename works
+
+Upstream's Electron package (`packages/electron/package.json`) defines `productName: "OpenChamber"` and `appId: "dev.openchamber.desktop"`. Before packaging, both the build script and the CI workflow patch those fields (via `jq`) to:
+
+- `productName`: `opencode-gui`
+- `appId`: `dev.opencode-gui.desktop`
+
+so the resulting `.app`, `.dmg`, and release asset names all read `opencode-gui-*` instead of `OpenChamber-*`. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
+
+## Attribution & license
+
+OpenChamber is Copyright (c) 2025 Bohdan Triapitsyn, licensed under the [MIT License](LICENSE) (copied unmodified from upstream). All credit for the application itself belongs to the upstream [openchamber/openchamber](https://github.com/openchamber/openchamber) project and its contributors. This repository exists only to provide ready-to-run macOS Apple Silicon builds under a different display name; it claims no authorship over OpenChamber's code.
+
+## Build notes
+
+- Runner: `macos-14` (Apple Silicon / arm64).
+- Build tool: Bun workspaces + `electron-builder` (OpenChamber is an Electron app, not Tauri).
+- Targets: `dmg` and `zip` (`.app` bundle), arm64 only.
+- Unsigned: no Apple Developer ID is used, so builds are ad-hoc/unsigned. Users must clear quarantine on first run (see Install above).
+- The workflow derives the release tag from the upstream tag/ref that was built (e.g. upstream `v2.6.0` → this repo's release `v2.6.0`), so it's easy to tell which upstream version a given release corresponds to.

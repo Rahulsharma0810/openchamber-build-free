@@ -1,0 +1,152 @@
+name: Build opencode-gui (macOS arm64)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Upstream openchamber/openchamber tag/ref to build (empty = latest release tag)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 */12 * * *"
+
+env:
+  UPSTREAM_REPO: openchamber/openchamber
+  PRODUCT_NAME: opencode-gui
+  APP_ID: dev.opencode-gui.desktop
+
+permissions:
+  contents: write
+
+jobs:
+  check-new-release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      should_build: ${{ steps.resolve.outputs.should_build }}
+    steps:
+      - name: Resolve upstream tag and check for existing release
+        id: resolve
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          REF="${{ github.event.inputs.ref }}"
+          if [ -z "$REF" ]; then
+            REF=$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '.tag_name')
+          fi
+          echo "tag=$REF" >> "$GITHUB_OUTPUT"
+          if gh release view "$REF" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $REF already exists in this repo, skipping build."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check-new-release
+    if: needs.check-new-release.outputs.should_build == 'true'
+    runs-on: macos-14
+    env:
+      TAG: ${{ needs.check-new-release.outputs.tag }}
+    steps:
+      - name: Checkout this repo (for release notes/scripts)
+        uses: actions/checkout@v4
+
+      - name: Checkout upstream openchamber/openchamber @ ${{ env.TAG }}
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ env.TAG }}
+          path: upstream
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        working-directory: upstream
+        run: bun install --frozen-lockfile
+
+      - name: Patch product name / appId
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          PKG_JSON="packages/electron/package.json"
+          tmp=$(mktemp)
+          jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" '
+            .build.productName = $name
+            | .build.appId = $appId
+          ' "$PKG_JSON" > "$tmp"
+          mv "$tmp" "$PKG_JSON"
+          jq '.build.productName, .build.appId' "$PKG_JSON"
+
+      - name: Build web assets
+        working-directory: upstream/packages/electron
+        run: bun run build:web-assets
+
+      - name: Prepare opencode CLI
+        working-directory: upstream/packages/electron
+        run: |
+          bun run prepare:opencode-cli
+          bun run verify:opencode-cli || true
+
+      - name: Bundle main process
+        working-directory: upstream/packages/electron
+        run: bun run bundle:main
+
+      - name: Rebuild native modules (arm64)
+        working-directory: upstream/packages/electron
+        run: bun run rebuild:native
+
+      - name: Package with electron-builder (mac arm64, unsigned)
+        working-directory: upstream/packages/electron
+        env:
+          ELECTRON_BUILDER_ARCH: arm64
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: ./node_modules/.bin/electron-builder --mac --arm64 --publish=never
+
+      - name: Verify packaged opencode CLI
+        working-directory: upstream/packages/electron
+        run: bun run verify:opencode-cli:packaged || true
+
+      - name: Stage artifacts
+        run: |
+          set -euo pipefail
+          STAGE="$RUNNER_TEMP/stage"
+          mkdir -p "$STAGE"
+          cp upstream/packages/electron/dist/*.dmg "$STAGE/" 2>/dev/null || true
+          cp upstream/packages/electron/dist/*.zip "$STAGE/" 2>/dev/null || true
+          ls -lh "$STAGE"
+          echo "STAGE=$STAGE" >> "$GITHUB_ENV"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode-gui-macos-arm64-${{ env.TAG }}
+          path: ${{ env.STAGE }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          if ! gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --repo "${{ github.repository }}" \
+              --title "opencode-gui $TAG" \
+              --notes "Unsigned macOS Apple Silicon (arm64) build of upstream [openchamber/openchamber]($UPSTREAM_REPO) $TAG, renamed to opencode-gui. See README for install/Gatekeeper notes."
+          fi
+          gh release upload "$TAG" \
+            --repo "${{ github.repository }}" \
+            --clobber \
+            "$STAGE"/*
+          gh release edit "$TAG" --repo "${{ github.repository }}" --latest
