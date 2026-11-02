@@ -61,6 +61,9 @@ echo "Preparing opencode CLI..."
 bun run prepare:opencode-cli
 bun run verify:opencode-cli || true
 
+echo "Preparing ripgrep..."
+bun run prepare:ripgrep
+
 echo "Bundling main process..."
 bun run bundle:main
 

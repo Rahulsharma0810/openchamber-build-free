@@ -97,6 +97,10 @@ jobs:
           bun run prepare:opencode-cli
           bun run verify:opencode-cli || true
 
+      - name: Prepare ripgrep
+        working-directory: upstream/packages/electron
+        run: bun run prepare:ripgrep
+
       - name: Bundle main process
         working-directory: upstream/packages/electron
         run: bun run bundle:main
