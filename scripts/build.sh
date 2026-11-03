@@ -16,7 +16,7 @@ if [ "$(uname -m)" != "arm64" ]; then
 fi
 
 UPSTREAM_REPO="openchamber/openchamber"
-PRODUCT_NAME="opencode-gui"
+PRODUCT_NAME="OpenCode GUI"
 APP_ID="dev.opencode-gui.desktop"
 RELEASE_OWNER="Rahulsharma0810"
 RELEASE_REPO="openchamber-build-free"

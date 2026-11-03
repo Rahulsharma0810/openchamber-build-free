@@ -12,7 +12,7 @@ on:
 
 env:
   UPSTREAM_REPO: openchamber/openchamber
-  PRODUCT_NAME: opencode-gui
+  PRODUCT_NAME: "OpenCode GUI"
   APP_ID: dev.opencode-gui.desktop
 
 permissions:

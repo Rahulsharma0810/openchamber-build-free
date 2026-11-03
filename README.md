@@ -1,27 +1,27 @@
 # opencode-gui
 
-GitHub Actions builds of upstream [OpenChamber](https://github.com/openchamber/openchamber) for macOS (Apple Silicon / arm64), rebranded as **opencode-gui**.
+GitHub Actions builds of upstream [OpenChamber](https://github.com/openchamber/openchamber) for macOS (Apple Silicon / arm64), rebranded as **OpenCode GUI**.
 
 OpenChamber is MIT-licensed; this repo only automates building it from source and renaming the resulting app. No functional patches are applied — it is a straight build of whatever upstream tag/ref is selected.
 
 ## Overview
 
-`.github/workflows/build-release.yml` checks out upstream `openchamber/openchamber` at a tag (latest `v*` by default, or any ref you choose via manual dispatch), builds the Electron desktop app for macOS arm64 with Bun + electron-builder, renames the product to `opencode-gui`, and publishes a GitHub release with the `.dmg` and `.zip` artifacts.
+`.github/workflows/build-release.yml` checks out upstream `openchamber/openchamber` at a tag (latest `v*` by default, or any ref you choose via manual dispatch), builds the Electron desktop app for macOS arm64 with Bun + electron-builder, renames the product to `OpenCode GUI`, and publishes a GitHub release with the `.dmg` and `.zip` artifacts.
 
 `scripts/build.sh` does the same build locally on an Apple Silicon Mac, for testing before (or instead of) running CI.
 
 ## Install
 
-1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/openchamber-build-free/releases/latest) and drag `opencode-gui.app` to `/Applications`.
+1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/openchamber-build-free/releases/latest) and drag `OpenCode GUI.app` to `/Applications`.
 2. The build is unsigned/ad-hoc signed (no Apple Developer certificate). Gatekeeper will block it on first launch:
    ```bash
-   xattr -dr com.apple.quarantine /Applications/opencode-gui.app
+   xattr -dr com.apple.quarantine "/Applications/OpenCode GUI.app"
    ```
    or right-click the app → **Open**.
 
 ## Auto-update
 
-OpenChamber already ships with `electron-updater` (GitHub provider) built in — upstream just points it at `openchamber/openchamber`. The build/release workflow repoints `build.publish.owner`/`repo` at **this** repo before packaging, so every installed `opencode-gui.app` checks *this* repo's releases for updates, not upstream's. Each release includes `latest-mac.yml` (the update manifest electron-updater reads) alongside the `.dmg`/`.zip`, so once you've installed one release, later releases install themselves automatically — no manual re-download needed.
+OpenChamber already ships with `electron-updater` (GitHub provider) built in — upstream just points it at `openchamber/openchamber`. The build/release workflow repoints `build.publish.owner`/`repo` at **this** repo before packaging, so every installed `OpenCode GUI.app` checks *this* repo's releases for updates, not upstream's. Each release includes `latest-mac.yml` (the update manifest electron-updater reads) alongside the `.dmg`/`.zip`, so once you've installed one release, later releases install themselves automatically — no manual re-download needed.
 
 ## Manual builds
 
@@ -47,10 +47,10 @@ Output lands in `work/openchamber/packages/electron/dist/`.
 
 Upstream's Electron package (`packages/electron/package.json`) defines `productName: "OpenChamber"` and `appId: "dev.openchamber.desktop"`. Before packaging, both the build script and the CI workflow patch those fields (via `jq`) to:
 
-- `productName`: `opencode-gui`
+- `productName`: `OpenCode GUI`
 - `appId`: `dev.opencode-gui.desktop`
 
-so the resulting `.app`, `.dmg`, and release asset names all read `opencode-gui-*` instead of `OpenChamber-*`. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
+so the resulting `.app` (installed as `OpenCode GUI.app` under `/Applications`), `.dmg`, and release asset names all read `OpenCode GUI-*` instead of `OpenChamber-*`. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
 
 ## Attribution & license
 
