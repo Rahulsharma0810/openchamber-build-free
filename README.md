@@ -50,7 +50,7 @@ Upstream's Electron package (`packages/electron/package.json`) defines `productN
 - `productName`: `OpenCode GUI`
 - `appId`: `dev.opencode-gui.desktop`
 
-so the resulting `.app` (installed as `OpenCode GUI.app` under `/Applications`), `.dmg`, and release asset names all read `OpenCode GUI-*` instead of `OpenChamber-*`. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
+so the installed `.app` reads `OpenCode GUI.app` (with a space, under `/Applications`), while the release `.dmg`/`.zip`/`latest-mac.yml` asset names use a fixed, space-free pattern (`OpenCode-GUI-<version>-mac-<arch>.<ext>`) set via `build.mac.artifactName` — a literal space in `productName` makes electron-builder's packager and its GitHub-publish update-manifest generator sanitize the space differently (`.` vs `-`), producing a `latest-mac.yml` whose `url` doesn't match the actual uploaded asset and silently breaking auto-update. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
 
 ## Attribution & license
 

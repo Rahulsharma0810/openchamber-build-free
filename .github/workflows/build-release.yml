@@ -87,15 +87,23 @@ jobs:
           # Repoint build.publish at THIS repo so the app's built-in
           # electron-updater (GitHub provider) checks our releases instead
           # of upstream's, in addition to the rename.
+          #
+          # artifactName is pinned to a literal, space-free pattern (not
+          # ${productName}) because electron-builder's packager and its
+          # GitHub-publish update-manifest generator sanitize a space in
+          # productName differently (one uses ".", the other "-"), which
+          # produces a latest-mac.yml whose "url" does not match the actual
+          # uploaded asset name and silently breaks auto-update.
           jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" \
              --arg owner "$REPO_OWNER" --arg repo "$REPO_NAME" '
             .build.productName = $name
             | .build.appId = $appId
             | .build.publish.owner = $owner
             | .build.publish.repo = $repo
+            | .build.mac.artifactName = "OpenCode-GUI-${version}-mac-${arch}.${ext}"
           ' "$PKG_JSON" > "$tmp"
           mv "$tmp" "$PKG_JSON"
-          jq '.build.productName, .build.appId, .build.publish' "$PKG_JSON"
+          jq '.build.productName, .build.appId, .build.publish, .build.mac.artifactName' "$PKG_JSON"
 
       - name: Build web assets
         working-directory: upstream/packages/electron

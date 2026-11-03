@@ -48,12 +48,16 @@ PKG_JSON="packages/electron/package.json"
 
 echo "Patching product name/appId/update feed: ${PRODUCT_NAME} / ${APP_ID} / ${RELEASE_OWNER}/${RELEASE_REPO}"
 tmp=$(mktemp)
+# artifactName pinned to a literal, space-free pattern — see comment in
+# .github/workflows/build-release.yml for why (latest-mac.yml url mismatch
+# bug when productName contains a space).
 jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" \
    --arg owner "$RELEASE_OWNER" --arg repo "$RELEASE_REPO" '
   .build.productName = $name
   | .build.appId = $appId
   | .build.publish.owner = $owner
   | .build.publish.repo = $repo
+  | .build.mac.artifactName = "OpenCode-GUI-${version}-mac-${arch}.${ext}"
 ' "$PKG_JSON" > "$tmp"
 mv "$tmp" "$PKG_JSON"
 
