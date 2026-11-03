@@ -1,12 +1,12 @@
 # opencode-gui
 
-GitHub Actions builds of upstream [OpenChamber](https://github.com/openchamber/openchamber) for macOS (Apple Silicon / arm64), rebranded as **OpenCode GUI**.
+GitHub Actions builds of upstream [OpenChamber](https://github.com/openchamber/openchamber) for macOS (Apple Silicon / arm64), rebranded as **opencode-gui**.
 
 OpenChamber is MIT-licensed; this repo only automates building it from source and renaming the resulting app. No functional patches are applied — it is a straight build of whatever upstream tag/ref is selected.
 
 ## Overview
 
-`.github/workflows/build-release.yml` checks out upstream `openchamber/openchamber` at a tag (latest `v*` by default, or any ref you choose via manual dispatch), builds the Electron desktop app for macOS arm64 with Bun + electron-builder, renames the product to `OpenCode GUI`, and publishes a GitHub release with the `.dmg` and `.zip` artifacts.
+`.github/workflows/build-release.yml` checks out upstream `openchamber/openchamber` at a tag (latest `v*` by default, or any ref you choose via manual dispatch), builds the Electron desktop app for macOS arm64 with Bun + electron-builder, renames the product to `opencode-gui`, and publishes a GitHub release with the `.dmg` and `.zip` artifacts.
 
 `scripts/build.sh` does the same build locally on an Apple Silicon Mac, for testing before (or instead of) running CI.
 
@@ -50,7 +50,7 @@ Upstream's Electron package (`packages/electron/package.json`) defines `productN
 - `productName`: `OpenCode GUI`
 - `appId`: `dev.opencode-gui.desktop`
 
-so the installed `.app` reads `OpenCode GUI.app` (with a space, under `/Applications`), while the release `.dmg`/`.zip`/`latest-mac.yml` asset names use a fixed, space-free pattern (`OpenCode-GUI-<version>-mac-<arch>.<ext>`) set via `build.mac.artifactName` — a literal space in `productName` makes electron-builder's packager and its GitHub-publish update-manifest generator sanitize the space differently (`.` vs `-`), producing a `latest-mac.yml` whose `url` doesn't match the actual uploaded asset and silently breaking auto-update. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
+so the resulting `.app`, `.dmg`, and release asset names all read `opencode-gui-*` instead of `OpenChamber-*`. No other source files are modified — this is a rename/repackage only, not a fork with behavior changes.
 
 ## Attribution & license
 
