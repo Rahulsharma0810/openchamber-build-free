@@ -18,6 +18,8 @@ fi
 UPSTREAM_REPO="openchamber/openchamber"
 PRODUCT_NAME="opencode-gui"
 APP_ID="dev.opencode-gui.desktop"
+RELEASE_OWNER="Rahulsharma0810"
+RELEASE_REPO="openchamber-build-free"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 WORK_DIR="$ROOT_DIR/work/openchamber"
@@ -44,11 +46,14 @@ bun install --frozen-lockfile
 
 PKG_JSON="packages/electron/package.json"
 
-echo "Patching product name/appId: ${PRODUCT_NAME} / ${APP_ID}"
+echo "Patching product name/appId/update feed: ${PRODUCT_NAME} / ${APP_ID} / ${RELEASE_OWNER}/${RELEASE_REPO}"
 tmp=$(mktemp)
-jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" '
+jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" \
+   --arg owner "$RELEASE_OWNER" --arg repo "$RELEASE_REPO" '
   .build.productName = $name
   | .build.appId = $appId
+  | .build.publish.owner = $owner
+  | .build.publish.repo = $repo
 ' "$PKG_JSON" > "$tmp"
 mv "$tmp" "$PKG_JSON"
 
@@ -77,4 +82,4 @@ bun run verify:opencode-cli:packaged || true
 
 echo
 echo "Build complete. Artifacts:"
-find dist -maxdepth 1 \( -name "*.dmg" -o -name "*.zip" \) -print
+find dist -maxdepth 1 \( -name "*.dmg" -o -name "*.zip" -o -name "latest-mac.yml" \) -print

@@ -8,7 +8,7 @@ on:
         required: false
         default: ""
   schedule:
-    - cron: "17 */12 * * *"
+    - cron: "17 */6 * * *"
 
 env:
   UPSTREAM_REPO: openchamber/openchamber
@@ -74,18 +74,28 @@ jobs:
         working-directory: upstream
         run: bun install --frozen-lockfile
 
-      - name: Patch product name / appId
+      - name: Patch product name / appId / update feed
         working-directory: upstream
+        env:
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          REPO_OWNER="${GH_REPOSITORY%%/*}"
+          REPO_NAME="${GH_REPOSITORY##*/}"
           PKG_JSON="packages/electron/package.json"
           tmp=$(mktemp)
-          jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" '
+          # Repoint build.publish at THIS repo so the app's built-in
+          # electron-updater (GitHub provider) checks our releases instead
+          # of upstream's, in addition to the rename.
+          jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" \
+             --arg owner "$REPO_OWNER" --arg repo "$REPO_NAME" '
             .build.productName = $name
             | .build.appId = $appId
+            | .build.publish.owner = $owner
+            | .build.publish.repo = $repo
           ' "$PKG_JSON" > "$tmp"
           mv "$tmp" "$PKG_JSON"
-          jq '.build.productName, .build.appId' "$PKG_JSON"
+          jq '.build.productName, .build.appId, .build.publish' "$PKG_JSON"
 
       - name: Build web assets
         working-directory: upstream/packages/electron
@@ -127,6 +137,12 @@ jobs:
           mkdir -p "$STAGE"
           cp upstream/packages/electron/dist/*.dmg "$STAGE/" 2>/dev/null || true
           cp upstream/packages/electron/dist/*.zip "$STAGE/" 2>/dev/null || true
+          # electron-updater (GitHub provider, Squirrel.Mac) reads this
+          # metadata file from the release assets to learn the latest
+          # version and the zip's checksum/size. Must ship it or
+          # autoUpdater.checkForUpdates() finds nothing.
+          cp upstream/packages/electron/dist/latest-mac.yml "$STAGE/" 2>/dev/null || true
+          cp upstream/packages/electron/dist/*.blockmap "$STAGE/" 2>/dev/null || true
           ls -lh "$STAGE"
           echo "STAGE=$STAGE" >> "$GITHUB_ENV"
 
@@ -147,7 +163,7 @@ jobs:
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
               --title "opencode-gui $TAG" \
-              --notes "Unsigned macOS Apple Silicon (arm64) build of upstream [openchamber/openchamber]($UPSTREAM_REPO) $TAG, renamed to opencode-gui. See README for install/Gatekeeper notes."
+              --notes "Unsigned macOS Apple Silicon (arm64) build of upstream [openchamber/openchamber]($UPSTREAM_REPO) $TAG, renamed to opencode-gui. Installed apps auto-update from this repo's releases. See README for install/Gatekeeper notes."
           fi
           gh release upload "$TAG" \
             --repo "${{ github.repository }}" \

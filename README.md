@@ -12,21 +12,25 @@ OpenChamber is MIT-licensed; this repo only automates building it from source an
 
 ## Install
 
-1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/opencode-gui/releases/latest) and drag `opencode-gui.app` to `/Applications`.
+1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/openchamber-build-free/releases/latest) and drag `opencode-gui.app` to `/Applications`.
 2. The build is unsigned/ad-hoc signed (no Apple Developer certificate). Gatekeeper will block it on first launch:
    ```bash
    xattr -dr com.apple.quarantine /Applications/opencode-gui.app
    ```
    or right-click the app → **Open**.
 
+## Auto-update
+
+OpenChamber already ships with `electron-updater` (GitHub provider) built in — upstream just points it at `openchamber/openchamber`. The build/release workflow repoints `build.publish.owner`/`repo` at **this** repo before packaging, so every installed `opencode-gui.app` checks *this* repo's releases for updates, not upstream's. Each release includes `latest-mac.yml` (the update manifest electron-updater reads) alongside the `.dmg`/`.zip`, so once you've installed one release, later releases install themselves automatically — no manual re-download needed.
+
 ## Manual builds
 
 ```bash
-gh workflow run build-release.yml -R Rahulsharma0810/opencode-gui \
+gh workflow run build-release.yml -R Rahulsharma0810/openchamber-build-free \
   -f ref=v2.6.0
 ```
 
-Leave `ref` empty to build the latest upstream release tag. The workflow also runs on a schedule (every 12h) and skips automatically if a release for that upstream tag already exists in this repo.
+Leave `ref` empty to build the latest upstream release tag. The workflow also runs on a schedule (every 6h) and skips automatically if a release for that upstream tag already exists in this repo.
 
 ## Local build (Apple Silicon only)
 
