@@ -57,6 +57,14 @@ jq --arg name "$PRODUCT_NAME" --arg appId "$APP_ID" \
 ' "$PKG_JSON" > "$tmp"
 mv "$tmp" "$PKG_JSON"
 
+# Patch the runtime updater feed (hardcoded in updater-feed.mjs) so the
+# installed app checks THIS repo's releases, not upstream's.
+# owner/repo only occur in PRODUCTION_UPDATER_FEED (CANARY uses a URL),
+# so these substitutions are unambiguous.
+sed -i '' "s/owner: 'openchamber',/owner: 'Rahulsharma0810',/" packages/electron/updater-feed.mjs
+sed -i '' "s/repo: 'openchamber',/repo: 'openchamber-build-free',/" packages/electron/updater-feed.mjs
+grep -n "owner:\|repo:" packages/electron/updater-feed.mjs
+
 cd packages/electron
 
 echo "Building web assets..."

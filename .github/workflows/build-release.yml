@@ -97,6 +97,16 @@ jobs:
           mv "$tmp" "$PKG_JSON"
           jq '.build.productName, .build.appId, .build.publish' "$PKG_JSON"
 
+      - name: Patch runtime updater feed
+        working-directory: upstream
+        run: |
+          set -euo pipefail
+          # owner/repo only occur in PRODUCTION_UPDATER_FEED (CANARY uses a URL),
+          # so these substitutions are unambiguous.
+          sed -i '' "s/owner: 'openchamber',/owner: 'Rahulsharma0810',/" packages/electron/updater-feed.mjs
+          sed -i '' "s/repo: 'openchamber',/repo: 'openchamber-build-free',/" packages/electron/updater-feed.mjs
+          grep -n "owner:\|repo:" packages/electron/updater-feed.mjs
+
       - name: Build web assets
         working-directory: upstream/packages/electron
         run: bun run build:web-assets
