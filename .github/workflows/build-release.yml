@@ -100,7 +100,7 @@ jobs:
             | .build.appId = $appId
             | .build.publish.owner = $owner
             | .build.publish.repo = $repo
-            # Signed with our self-signed cert, not Apple's: no notarization.
+            # Self-signed cert, not an Apple Developer ID: no notarization.
             | .build.mac.notarize = false
             | .build.dmg.sign = false
           ' "$PKG_JSON" > "$tmp"
