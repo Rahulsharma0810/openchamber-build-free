@@ -58,7 +58,7 @@ OpenChamber is Copyright (c) 2025 Bohdan Triapitsyn, licensed under the [MIT Lic
 
 ## Build notes
 
-- Runner: `macos-14` (Apple Silicon / arm64).
+- Runner: `macos-15` (Apple Silicon / arm64).
 - Build tool: Bun workspaces + `electron-builder` (OpenChamber is an Electron app, not Tauri).
 - Targets: `dmg` and `zip` (`.app` bundle), arm64 only.
 - Unsigned: no Apple Developer ID is used, so builds are ad-hoc/unsigned. Users must clear quarantine on first run (see Install above).
