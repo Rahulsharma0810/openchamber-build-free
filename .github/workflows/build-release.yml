@@ -153,6 +153,16 @@ jobs:
           # autoUpdater.checkForUpdates() finds nothing.
           cp upstream/packages/electron/dist/latest-mac.yml "$STAGE/" 2>/dev/null || true
           cp upstream/packages/electron/dist/*.blockmap "$STAGE/" 2>/dev/null || true
+          # GitHub turns spaces in asset names into dots, but latest-mac.yml
+          # (and electron-updater) expect dashes. Rename so they match.
+          for f in "$STAGE"/*' '*; do
+            [ -e "$f" ] || continue
+            mv "$f" "$(dirname "$f")/$(basename "$f" | tr ' ' '-')"
+          done
+          # Fail if latest-mac.yml references a file we are not shipping.
+          for u in $(awk '/url:|path:/ {print $NF}' "$STAGE/latest-mac.yml" | sort -u); do
+            [ -f "$STAGE/$u" ] || { echo "latest-mac.yml references missing asset: $u"; exit 1; }
+          done
           ls -lh "$STAGE"
           echo "STAGE=$STAGE" >> "$GITHUB_ENV"
 
