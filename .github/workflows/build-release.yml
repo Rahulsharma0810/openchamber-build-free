@@ -190,3 +190,43 @@ jobs:
             --clobber \
             "$STAGE"/*
           gh release edit "$TAG" --repo "${{ github.repository }}" --latest
+
+  # Fails the run (so GitHub sends a failure notification) when a needed
+  # build did not succeed, including a build job that was cancelled before
+  # it started (e.g. a retired runner label), which otherwise shows only as
+  # "cancelled" and sends nothing.
+  verify-build:
+    needs: [check-new-release, build]
+    if: always() && needs.check-new-release.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check build result
+        run: |
+          echo "build result: ${{ needs.build.result }}"
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "::error::Build for ${{ needs.check-new-release.outputs.tag }} did not succeed (result: ${{ needs.build.result }})."
+            exit 1
+          fi
+
+  # Independent safety net on a different runner: fail if upstream's latest
+  # release has been out for more than 24h and this repo still has no
+  # release for it. Catches anything the job above cannot see.
+  staleness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check this repo is not behind upstream
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          read -r TAG PUBLISHED < <(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '"\(.tag_name) \(.published_at)"')
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Up to date with upstream $TAG."
+            exit 0
+          fi
+          AGE_H=$(( ( $(date -u +%s) - $(date -u -d "$PUBLISHED" +%s) ) / 3600 ))
+          echo "Upstream $TAG published $PUBLISHED (${AGE_H}h ago); no release here yet."
+          if [ "$AGE_H" -ge 24 ]; then
+            echo "::error::Upstream $TAG has been out for ${AGE_H}h but this repo has no release for it. Check recent build runs."
+            exit 1
+          fi
