@@ -7,6 +7,11 @@ on:
         description: "Upstream openchamber/openchamber tag/ref to build (empty = latest release tag)"
         required: false
         default: ""
+      force:
+        description: "Rebuild and re-upload even if the release already exists"
+        type: boolean
+        required: false
+        default: false
   schedule:
     - cron: "17 */6 * * *"
 
@@ -36,7 +41,9 @@ jobs:
             REF=$(gh api "repos/${UPSTREAM_REPO}/releases/latest" --jq '.tag_name')
           fi
           echo "tag=$REF" >> "$GITHUB_OUTPUT"
-          if gh release view "$REF" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "$REF" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release $REF already exists in this repo, skipping build."
             echo "should_build=false" >> "$GITHUB_OUTPUT"
           else
@@ -93,6 +100,9 @@ jobs:
             | .build.appId = $appId
             | .build.publish.owner = $owner
             | .build.publish.repo = $repo
+            # Signed with our self-signed cert, not Apple's: no notarization.
+            | .build.mac.notarize = false
+            | .build.dmg.sign = false
           ' "$PKG_JSON" > "$tmp"
           mv "$tmp" "$PKG_JSON"
           jq '.build.productName, .build.appId, .build.publish' "$PKG_JSON"
@@ -129,12 +139,35 @@ jobs:
         working-directory: upstream/packages/electron
         run: bun run rebuild:native
 
-      - name: Package with electron-builder (mac arm64, unsigned)
+      # Every build is signed with the same self-signed certificate
+      # (public part: signing/opencode-gui-codesign.cer). Squirrel.Mac only
+      # installs an update whose signature satisfies the running app's
+      # designated requirement; ad-hoc signatures change every build, so
+      # in-app updates never installed. A stable cert fixes that.
+      - name: Trust self-signed code signing certificate
+        run: |
+          set -euo pipefail
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign \
+            -k /Library/Keychains/System.keychain signing/opencode-gui-codesign.cer
+
+      - name: Package with electron-builder (mac arm64, self-signed)
         working-directory: upstream/packages/electron
         env:
           ELECTRON_BUILDER_ARCH: arm64
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
         run: ./node_modules/.bin/electron-builder --mac --arm64 --publish=never
+
+      - name: Verify code signature
+        working-directory: upstream/packages/electron
+        run: |
+          set -euo pipefail
+          APP=$(ls -d dist/mac-arm64/*.app | head -1)
+          codesign -dvv "$APP" 2>&1 | tee /tmp/sig.txt
+          grep -q "Authority=OpenCode GUI Self-Signed Code Signing" /tmp/sig.txt \
+            || { echo "::error::App is not signed with the self-signed cert"; exit 1; }
+          codesign --verify --deep --strict "$APP"
+          codesign -dr - "$APP"
 
       - name: Verify packaged opencode CLI
         working-directory: upstream/packages/electron
@@ -183,7 +216,7 @@ jobs:
             gh release create "$TAG" \
               --repo "${{ github.repository }}" \
               --title "opencode-gui $TAG" \
-              --notes "Unsigned macOS Apple Silicon (arm64) build of upstream [openchamber/openchamber]($UPSTREAM_REPO) $TAG, renamed to opencode-gui. Installed apps auto-update from this repo's releases. See README for install/Gatekeeper notes."
+              --notes "Self-signed (not notarized) macOS Apple Silicon (arm64) build of upstream [openchamber/openchamber]($UPSTREAM_REPO) $TAG, renamed to opencode-gui. Installed apps auto-update from this repo's releases. See README for install/Gatekeeper notes."
           fi
           gh release upload "$TAG" \
             --repo "${{ github.repository }}" \

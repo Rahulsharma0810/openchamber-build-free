@@ -13,7 +13,7 @@ OpenChamber is MIT-licensed; this repo only automates building it from source an
 ## Install
 
 1. Download the DMG from the [latest release](https://github.com/Rahulsharma0810/openchamber-build-free/releases/latest) and drag `OpenCode GUI.app` to `/Applications`.
-2. The build is unsigned/ad-hoc signed (no Apple Developer certificate). Gatekeeper will block it on first launch:
+2. The build is signed with a self-signed certificate (`signing/opencode-gui-codesign.cer`, SHA-1 `E2:94:B1:6A:CB:5C:68:56:34:24:94:97:FB:83:42:F6:FC:1B:85:2E`), not an Apple Developer ID, and is not notarized. Gatekeeper will block it on first launch:
    ```bash
    xattr -dr com.apple.quarantine "/Applications/OpenCode GUI.app"
    ```
@@ -61,5 +61,5 @@ OpenChamber is Copyright (c) 2025 Bohdan Triapitsyn, licensed under the [MIT Lic
 - Runner: `macos-15` (Apple Silicon / arm64).
 - Build tool: Bun workspaces + `electron-builder` (OpenChamber is an Electron app, not Tauri).
 - Targets: `dmg` and `zip` (`.app` bundle), arm64 only.
-- Unsigned: no Apple Developer ID is used, so builds are ad-hoc/unsigned. Users must clear quarantine on first run (see Install above).
+- Signing: every build is signed with the same self-signed certificate (secrets `MAC_CSC_LINK` / `MAC_CSC_KEY_PASSWORD`). That keeps the app's designated requirement stable, so in-app updates (Squirrel.Mac) install. Ad-hoc builds (2.7.1 and earlier) can't auto-update to a signed build: install the first signed build by hand. Rotating the certificate needs one more manual install. Users must clear quarantine on first run (see Install above).
 - The workflow derives the release tag from the upstream tag/ref that was built (e.g. upstream `v2.6.0` → this repo's release `v2.6.0`), so it's easy to tell which upstream version a given release corresponds to.
