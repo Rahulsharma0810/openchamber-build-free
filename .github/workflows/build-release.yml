@@ -107,15 +107,16 @@ jobs:
           mv "$tmp" "$PKG_JSON"
           jq '.build.productName, .build.appId, .build.publish' "$PKG_JSON"
 
+      # Point every updater feed (GitHub, canary, and the 2.7.x+ mirror on
+      # downloads.openchamber.dev) at this repo. Fails if anything upstream
+      # is left, so a future upstream change can't silently break updates.
       - name: Patch runtime updater feed
-        working-directory: upstream
+        env:
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          # owner/repo only occur in PRODUCTION_UPDATER_FEED (CANARY uses a URL),
-          # so these substitutions are unambiguous.
-          sed -i '' "s/owner: 'openchamber',/owner: 'Rahulsharma0810',/" packages/electron/updater-feed.mjs
-          sed -i '' "s/repo: 'openchamber',/repo: 'openchamber-build-free',/" packages/electron/updater-feed.mjs
-          grep -n "owner:\|repo:" packages/electron/updater-feed.mjs
+          python3 -I scripts/patch-updater-feed.py upstream/packages/electron/updater-feed.mjs \
+            "${GH_REPOSITORY%%/*}" "${GH_REPOSITORY##*/}"
 
       - name: Build web assets
         working-directory: upstream/packages/electron

@@ -59,11 +59,9 @@ mv "$tmp" "$PKG_JSON"
 
 # Patch the runtime updater feed (hardcoded in updater-feed.mjs) so the
 # installed app checks THIS repo's releases, not upstream's.
-# owner/repo only occur in PRODUCTION_UPDATER_FEED (CANARY uses a URL),
-# so these substitutions are unambiguous.
-sed -i '' "s/owner: 'openchamber',/owner: 'Rahulsharma0810',/" packages/electron/updater-feed.mjs
-sed -i '' "s/repo: 'openchamber',/repo: 'openchamber-build-free',/" packages/electron/updater-feed.mjs
-grep -n "owner:\|repo:" packages/electron/updater-feed.mjs
+# Also disables the 2.7.x+ downloads.openchamber.dev mirror.
+python3 -I "$ROOT_DIR/scripts/patch-updater-feed.py" packages/electron/updater-feed.mjs \
+  Rahulsharma0810 openchamber-build-free >/dev/null
 
 cd packages/electron
 
