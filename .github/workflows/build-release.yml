@@ -253,6 +253,9 @@ jobs:
   # release has been out for more than 24h and this repo still has no
   # release for it. Catches anything the job above cannot see.
   staleness:
+    # Run after the build so a release created by this same run counts.
+    needs: [check-new-release, build]
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - name: Check this repo is not behind upstream
