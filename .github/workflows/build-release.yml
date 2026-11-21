@@ -121,11 +121,19 @@ jobs:
         working-directory: upstream/packages/electron
         run: bun run build:web-assets
 
-      - name: Prepare opencode CLI
+      # Upstream renamed these scripts in v2.7.3 (opencode-cli -> opencode-server).
+      # Pick whichever exists so older tags can still be force-rebuilt.
+      - name: Prepare bundled OpenCode
+        id: oc
         working-directory: upstream/packages/electron
         run: |
-          bun run prepare:opencode-cli
-          bun run verify:opencode-cli || true
+          set -euo pipefail
+          OC=$(jq -r '.scripts | if has("prepare:opencode-server") then "opencode-server"
+                       elif has("prepare:opencode-cli") then "opencode-cli" else "" end' package.json)
+          [ -n "$OC" ] || { echo "::error::No prepare:opencode-server/-cli script in upstream package.json"; exit 1; }
+          echo "name=$OC" >> "$GITHUB_OUTPUT"
+          bun run "prepare:$OC"
+          bun run "verify:$OC" || true
 
       - name: Prepare ripgrep
         working-directory: upstream/packages/electron
@@ -169,9 +177,9 @@ jobs:
           codesign --verify --deep --strict "$APP"
           codesign -dr - "$APP"
 
-      - name: Verify packaged opencode CLI
+      - name: Verify packaged OpenCode
         working-directory: upstream/packages/electron
-        run: bun run verify:opencode-cli:packaged || true
+        run: bun run "verify:${{ steps.oc.outputs.name }}:packaged" || true
 
       - name: Stage artifacts
         run: |

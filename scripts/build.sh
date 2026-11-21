@@ -70,9 +70,11 @@ cd packages/electron
 echo "Building web assets..."
 bun run build:web-assets
 
-echo "Preparing opencode CLI..."
-bun run prepare:opencode-cli
-bun run verify:opencode-cli || true
+# Upstream renamed opencode-cli -> opencode-server in v2.7.3.
+OC=$(jq -r '.scripts | if has("prepare:opencode-server") then "opencode-server" else "opencode-cli" end' package.json)
+echo "Preparing bundled OpenCode ($OC)..."
+bun run "prepare:$OC"
+bun run "verify:$OC" || true
 
 echo "Preparing ripgrep..."
 bun run prepare:ripgrep
@@ -86,7 +88,7 @@ bun run rebuild:native
 echo "Packaging with electron-builder (mac arm64)..."
 ELECTRON_BUILDER_ARCH=arm64 ./node_modules/.bin/electron-builder --mac --arm64 --publish=never
 
-bun run verify:opencode-cli:packaged || true
+bun run "verify:$OC:packaged" || true
 
 echo
 echo "Build complete. Artifacts:"
